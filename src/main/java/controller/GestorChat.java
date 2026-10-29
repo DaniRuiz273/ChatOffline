@@ -263,4 +263,11 @@ public class GestorChat {
         }
         return archivo;
     }
+
+    public List<String> listarUsuarios() throws JAXBException {
+        return this.gestorXML.leerUsuarios().getUsuarios().stream()
+                .map(Usuario::getNombre)
+                .sorted(String.CASE_INSENSITIVE_ORDER)
+                .toList();
+    }
 }

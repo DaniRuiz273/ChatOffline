@@ -114,12 +114,14 @@ public class Main {
     }
 
     private static void registrar(Scanner teclado, GestorChat chat) throws JAXBException {
+        mostrarUsuarios(chat);
         String nombre = pedir(teclado, "Nombre del nuevo usuario: ");
         chat.registrarUsuario(nombre);
         System.out.println("Usuario '" + nombre + "' registrado correctamente.");
     }
 
     private static void enviar(Scanner teclado, GestorChat chat) throws JAXBException {
+        mostrarUsuarios(chat);
         String emisor = pedir(teclado, "Emisor: ");
         String destinatario = pedir(teclado, "Destinatario: ");
         String contenido = pedir(teclado, "Mensaje: ");
@@ -128,6 +130,7 @@ public class Main {
     }
 
     private static void consultar(Scanner teclado, GestorChat chat) throws JAXBException {
+        mostrarUsuarios(chat);
         String a = pedir(teclado, "Usuario A: ");
         String b = pedir(teclado, "Usuario B: ");
 
@@ -155,6 +158,7 @@ public class Main {
     }
 
     private static void estadisticas(Scanner teclado, GestorChat chat) throws JAXBException {
+        mostrarUsuarios(chat);
         String a = pedir(teclado, "Usuario A: ");
         String b = pedir(teclado, "Usuario B: ");
 
@@ -176,6 +180,7 @@ public class Main {
     }
 
     private static void exportar(Scanner teclado, GestorChat chat) throws JAXBException, IOException {
+        mostrarUsuarios(chat);
         String a = pedir(teclado, "Usuario A: ");
         String b = pedir(teclado, "Usuario B: ");
         Path ruta = pedirRuta(teclado, "Archivo de destino (ej. conversacion.txt): ");
@@ -185,6 +190,7 @@ public class Main {
     }
 
     private static void adjuntar(Scanner teclado, GestorChat chat) throws JAXBException, IOException {
+        mostrarUsuarios(chat);
         String a = pedir(teclado, "Usuario A: ");
         String b = pedir(teclado, "Usuario B: ");
 
@@ -212,6 +218,7 @@ public class Main {
     }
 
     private static void exportarAdjunto(Scanner teclado, GestorChat chat) throws JAXBException, IOException {
+        mostrarUsuarios(chat);
         String a = pedir(teclado, "Usuario A: ");
         String b = pedir(teclado, "Usuario B: ");
 
@@ -239,5 +246,14 @@ public class Main {
 
         chat.exportarAdjunto(conAdjunto.get(numero - 1), ruta);
         System.out.println("Adjunto exportado a " + ruta);
+    }
+
+    // Muestra los usuarios registrados; si no hay ninguno, avisa.
+    private static void mostrarUsuarios(GestorChat chat) throws JAXBException {
+        List<String> usuarios = chat.listarUsuarios();
+        if (usuarios.isEmpty()) {
+            throw new IllegalArgumentException("No hay usuarios registrados. Usa la opción 1 primero.");
+        }
+        System.out.println("Usuarios registrados: " + String.join(", ", usuarios));
     }
 }
