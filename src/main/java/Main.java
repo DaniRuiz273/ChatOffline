@@ -177,6 +177,13 @@ public class Main {
                 .forEach(e -> System.out.printf("%s: %d mensajes (%.0f%%)%n",
                         e.getKey(), e.getValue(), e.getValue() * 100.0 / total));
         System.out.println("Total: " + total + " mensajes");
+
+        Map<String, Long> palabras = chat.palabrasMasComunes(a, b, 5);
+        if (!palabras.isEmpty()) {
+            System.out.println("Palabras más usadas:");
+            palabras.forEach((palabra, veces) ->
+                    System.out.println("  " + palabra + ": " + veces + (veces == 1 ? " vez" : " veces")));
+        }
     }
 
     private static void exportar(Scanner teclado, GestorChat chat) throws JAXBException, IOException {

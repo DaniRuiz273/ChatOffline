@@ -15,9 +15,7 @@ import java.io.FileWriter;
 import java.io.IOException;
 import java.nio.file.Path;
 import java.time.LocalDateTime;
-import java.util.Comparator;
-import java.util.List;
-import java.util.Map;
+import java.util.*;
 import java.util.stream.Collectors;
 
 public class GestorChat {
@@ -269,5 +267,22 @@ public class GestorChat {
                 .map(Usuario::getNombre)
                 .sorted(String.CASE_INSENSITIVE_ORDER)
                 .toList();
+    }
+
+    public Map<String, Long> palabrasMasComunes(String usuarioA, String usuarioB, int limite)
+            throws JAXBException {
+        List<Mensaje> conversacion = consultarConversacion(usuarioA, usuarioB);
+
+        return conversacion.stream()
+                .map(m -> m.getContenido().toLowerCase())
+                .flatMap(c -> Arrays.stream(c.split("[^\\p{L}\\p{N}]+")))
+                .filter(p -> p.length() >= 3)
+                .collect(Collectors.groupingBy(p -> p, Collectors.counting()))
+                .entrySet().stream()
+                .sorted(Map.Entry.<String, Long>comparingByValue().reversed()
+                        .thenComparing(Map.Entry.comparingByKey()))
+                .limit(limite)
+                .collect(Collectors.toMap(Map.Entry::getKey, Map.Entry::getValue,
+                        (x, y) -> x, LinkedHashMap::new));
     }
 }
