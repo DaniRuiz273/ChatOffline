@@ -37,3 +37,9 @@ build/
 
 ### Mac OS ###
 .DS_Store
+
+usuarios.xml
+mensajes.xml
+*.xml.tmp
+*.xml.bak
+media/
