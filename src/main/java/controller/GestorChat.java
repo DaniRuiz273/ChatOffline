@@ -97,62 +97,67 @@ public class GestorChat {
     public void exportarConversacion(String usuarioA, String usuarioB, Path destino)
             throws JAXBException, IOException {
         List<Mensaje> conversacion = consultarConversacion(usuarioA, usuarioB);
+        if (conversacion.isEmpty()) {
+            throw new IllegalArgumentException("No hay mensajes que exportar entre esos usuarios.");
+        }
+
+        File archivo = prepararDestino(destino);
 
         List<String> lineas = conversacion.stream()
-                .map(m -> "[" + m.getFecha() + "] " + m.getEmisor() + ": " + m.getContenido())
+                .map(m -> {
+                    String linea = "[" + m.getFecha().replace('T', ' ') + "] "
+                            + m.getEmisor() + ": " + m.getContenido();
+                    if (m.getAdjuntoNombre() != null) {
+                        linea += " (adjunto: " + m.getAdjuntoNombre() + ")";
+                    }
+                    return linea;
+                })
                 .toList();
 
-        try (BufferedWriter salida = new BufferedWriter(new FileWriter(destino.toFile()))) {
+        try (BufferedWriter salida = new BufferedWriter(new FileWriter(archivo))) {
             for (String linea : lineas) {
                 salida.write(linea);
                 salida.newLine();
             }
+        } catch (IOException e) {
+            archivo.delete(); // no dejar un archivo a medias
+            throw e;
         }
     }
 
     // Fase 5: validar extensión/tamaño, copiar con InputStream/OutputStream
     // a media/ y guardar los metadatos del adjunto en el mensaje XML.
     public void adjuntarArchivo(Mensaje mensaje, Path archivoOrigen) throws IOException, JAXBException {
+        if (mensaje == null) {
+            throw new IllegalArgumentException("Debes indicar un mensaje.");
+        }
+        if (archivoOrigen == null) {
+            throw new IllegalArgumentException("Debes indicar un archivo.");
+        }
         File origen = archivoOrigen.toFile();
 
-        // 1. Validaciones
+        // 1. Validaciones del archivo
         if (!origen.exists() || !origen.isFile()) {
             throw new IOException("El archivo no existe: " + origen.getPath());
         }
         String nombre = origen.getName();
         int punto = nombre.lastIndexOf('.');
-        if (punto < 0) {
+        if (punto < 0 || punto == nombre.length() - 1) {
             throw new IllegalArgumentException("El archivo no tiene extensión.");
         }
         String extension = nombre.substring(punto + 1).toLowerCase();
         if (!EXTENSIONES_PERMITIDAS.contains(extension)) {
-            throw new IllegalArgumentException("Extensión no permitida: ." + extension);
+            throw new IllegalArgumentException("Extensión no permitida: ." + extension
+                    + " (permitidas: " + String.join(", ", EXTENSIONES_PERMITIDAS) + ")");
+        }
+        if (origen.length() == 0) {
+            throw new IllegalArgumentException("El archivo está vacío.");
         }
         if (origen.length() > TAMANO_MAXIMO) {
             throw new IllegalArgumentException("El archivo supera el tamaño máximo (5 MB).");
         }
 
-        // 2. Copiar a media/ con streams binarios
-        File carpeta = new File("media");
-        carpeta.mkdirs();
-        File destino = new File(carpeta, System.currentTimeMillis() + "_" + nombre);
-
-        try (FileInputStream entrada = new FileInputStream(origen);
-             FileOutputStream salida = new FileOutputStream(destino)) {
-            byte[] bloque = new byte[1024];
-            int leidos;
-            while ((leidos = entrada.read(bloque)) != -1) {
-                salida.write(bloque, 0, leidos);
-            }
-        }
-
-        // 3. Guardar los metadatos en el mensaje
-        mensaje.setAdjuntoRuta(destino.getPath());
-        mensaje.setAdjuntoNombre(nombre);
-        mensaje.setAdjuntoTamano(destino.length());
-        mensaje.setAdjuntoTipo(extension);
-
-        // 4. Actualizar ese mensaje en mensajes.xml
+        // 2. Buscar el mensaje en el historial ANTES de copiar nada
         ListaMensajes lista = this.gestorXML.leerMensajes();
         Mensaje guardado = lista.getMensajes().stream()
                 .filter(m -> m.getEmisor().equals(mensaje.getEmisor())
@@ -162,16 +167,47 @@ public class GestorChat {
                 .findFirst()
                 .orElseThrow(() -> new IllegalArgumentException("El mensaje no existe en el historial."));
 
-        guardado.setAdjuntoRuta(mensaje.getAdjuntoRuta());
-        guardado.setAdjuntoNombre(mensaje.getAdjuntoNombre());
-        guardado.setAdjuntoTamano(mensaje.getAdjuntoTamano());
-        guardado.setAdjuntoTipo(mensaje.getAdjuntoTipo());
-        this.gestorXML.guardarMensajes(lista);
+        if (guardado.getAdjuntoRuta() != null) {
+            throw new IllegalArgumentException("Este mensaje ya tiene un adjunto ("
+                    + guardado.getAdjuntoNombre() + ").");
+        }
+
+        // 3. Copiar a media/ con streams binarios
+        File carpeta = new File("media");
+        if (!carpeta.exists() && !carpeta.mkdirs()) {
+            throw new IOException("No se pudo crear la carpeta media/.");
+        }
+        File destino = new File(carpeta, System.currentTimeMillis() + "_" + nombre);
+
+        try (FileInputStream entrada = new FileInputStream(origen);
+             FileOutputStream salida = new FileOutputStream(destino)) {
+            byte[] bloque = new byte[1024];
+            int leidos;
+            while ((leidos = entrada.read(bloque)) != -1) {
+                salida.write(bloque, 0, leidos);
+            }
+        } catch (IOException e) {
+            destino.delete(); // no dejar una copia incompleta
+            throw e;
+        }
+
+        // 4. Guardar los metadatos; si falla el XML, deshacer la copia
+        guardado.setAdjuntoRuta(destino.getPath());
+        guardado.setAdjuntoNombre(nombre);
+        guardado.setAdjuntoTamano(destino.length());
+        guardado.setAdjuntoTipo(extension);
+
+        try {
+            this.gestorXML.guardarMensajes(lista);
+        } catch (JAXBException e) {
+            destino.delete();
+            throw e;
+        }
     }
 
     // Requisito 8.4: exportar un adjunto de media/ a otra ruta.
     public void exportarAdjunto(Mensaje mensaje, Path destino) throws IOException {
-        if (mensaje.getAdjuntoRuta() == null) {
+        if (mensaje == null || mensaje.getAdjuntoRuta() == null) {
             throw new IllegalArgumentException("Este mensaje no tiene adjunto.");
         }
 
@@ -180,10 +216,7 @@ public class GestorChat {
             throw new IOException("El adjunto ya no está en media/: " + origen.getPath());
         }
 
-        File copia = destino.toFile();
-        if (copia.exists()) {
-            throw new IllegalArgumentException("Ya existe un archivo con ese nombre en el destino.");
-        }
+        File copia = prepararDestino(destino);
 
         try (FileInputStream entrada = new FileInputStream(origen);
              FileOutputStream salida = new FileOutputStream(copia)) {
@@ -192,6 +225,9 @@ public class GestorChat {
             while ((leidos = entrada.read(bloque)) != -1) {
                 salida.write(bloque, 0, leidos);
             }
+        } catch (IOException e) {
+            copia.delete(); // no dejar una copia incompleta
+            throw e;
         }
     }
 
@@ -207,5 +243,24 @@ public class GestorChat {
                 .findFirst()
                 .orElseThrow(() -> new IllegalArgumentException(
                         "El usuario '" + buscado + "' no está registrado."));
+    }
+
+    // Comprueba el destino y crea la carpeta padre si no existe.
+    private File prepararDestino(Path destino) throws IOException {
+        if (destino == null) {
+            throw new IllegalArgumentException("Debes indicar un archivo de destino.");
+        }
+        File archivo = destino.toFile();
+        if (archivo.isDirectory()) {
+            throw new IllegalArgumentException("El destino es una carpeta, indica un nombre de archivo.");
+        }
+        if (archivo.exists()) {
+            throw new IllegalArgumentException("Ya existe un archivo con ese nombre: " + archivo.getPath());
+        }
+        File carpeta = archivo.getAbsoluteFile().getParentFile();
+        if (carpeta != null && !carpeta.exists() && !carpeta.mkdirs()) {
+            throw new IOException("No se pudo crear la carpeta de destino: " + carpeta.getPath());
+        }
+        return archivo;
     }
 }
