@@ -34,7 +34,7 @@ public class GestorChat {
         }
         String limpio = nombre.trim();
 
-        ListaUsuarios lista = gestorXML.leerUsuarios();
+        ListaUsuarios lista = this.gestorXML.leerUsuarios();
 
         boolean existe = lista.getUsuarios().stream()
                 .anyMatch(u -> u.getNombre().equalsIgnoreCase(limpio));
@@ -43,7 +43,7 @@ public class GestorChat {
         }
 
         lista.getUsuarios().add(new Usuario(limpio));
-        gestorXML.guardarUsuarios(lista);
+        this.gestorXML.guardarUsuarios(lista);
     }
 
     // Fase 2: validar usuarios, crear mensaje con fecha y persistirlo.
@@ -52,36 +52,35 @@ public class GestorChat {
             throw new IllegalArgumentException("El mensaje no puede estar vacío.");
         }
 
-        ListaUsuarios usuarios = gestorXML.leerUsuarios();
-        boolean emisorExiste = usuarios.getUsuarios().stream()
-                .anyMatch(u -> u.getNombre().equalsIgnoreCase(emisor));
-        boolean destinatarioExiste = usuarios.getUsuarios().stream()
-                .anyMatch(u -> u.getNombre().equalsIgnoreCase(destinatario));
+        String nombreEmisor = buscarNombreRegistrado(emisor);
+        String nombreDestinatario = buscarNombreRegistrado(destinatario);
 
-        if (!emisorExiste) {
-            throw new IllegalArgumentException("El emisor '" + emisor + "' no está registrado.");
-        }
-        if (!destinatarioExiste) {
-            throw new IllegalArgumentException("El destinatario '" + destinatario + "' no está registrado.");
+        if (nombreEmisor.equals(nombreDestinatario)) {
+            throw new IllegalArgumentException("No puedes enviarte un mensaje a ti mismo.");
         }
 
         String fecha = LocalDateTime.now().withNano(0).toString();
-        Mensaje mensaje = new Mensaje(emisor, destinatario, contenido, fecha);
+        Mensaje mensaje = new Mensaje(nombreEmisor, nombreDestinatario, contenido.trim(), fecha);
 
-        ListaMensajes lista = gestorXML.leerMensajes();
+        ListaMensajes lista = this.gestorXML.leerMensajes();
         lista.getMensajes().add(mensaje);
-        gestorXML.guardarMensajes(lista);
+        this.gestorXML.guardarMensajes(lista);
     }
 
     // Fase 3: filtrar mensajes en ambos sentidos (A -> B y B -> A).
     public List<Mensaje> consultarConversacion(String usuarioA, String usuarioB) throws JAXBException {
-        ListaMensajes lista = gestorXML.leerMensajes();
+        String nombreA = buscarNombreRegistrado(usuarioA);
+        String nombreB = buscarNombreRegistrado(usuarioB);
+
+        if (nombreA.equals(nombreB)) {
+            throw new IllegalArgumentException("Debes indicar dos usuarios distintos.");
+        }
+
+        ListaMensajes lista = this.gestorXML.leerMensajes();
 
         return lista.getMensajes().stream()
-                .filter(m -> (m.getEmisor().equalsIgnoreCase(usuarioA)
-                        && m.getDestinatario().equalsIgnoreCase(usuarioB))
-                        || (m.getEmisor().equalsIgnoreCase(usuarioB)
-                        && m.getDestinatario().equalsIgnoreCase(usuarioA)))
+                .filter(m -> (m.getEmisor().equals(nombreA) && m.getDestinatario().equals(nombreB))
+                        || (m.getEmisor().equals(nombreB) && m.getDestinatario().equals(nombreA)))
                 .sorted(Comparator.comparing(Mensaje::getFecha))
                 .toList();
     }
@@ -154,7 +153,7 @@ public class GestorChat {
         mensaje.setAdjuntoTipo(extension);
 
         // 4. Actualizar ese mensaje en mensajes.xml
-        ListaMensajes lista = gestorXML.leerMensajes();
+        ListaMensajes lista = this.gestorXML.leerMensajes();
         Mensaje guardado = lista.getMensajes().stream()
                 .filter(m -> m.getEmisor().equals(mensaje.getEmisor())
                         && m.getDestinatario().equals(mensaje.getDestinatario())
@@ -167,7 +166,7 @@ public class GestorChat {
         guardado.setAdjuntoNombre(mensaje.getAdjuntoNombre());
         guardado.setAdjuntoTamano(mensaje.getAdjuntoTamano());
         guardado.setAdjuntoTipo(mensaje.getAdjuntoTipo());
-        gestorXML.guardarMensajes(lista);
+        this.gestorXML.guardarMensajes(lista);
     }
 
     // Requisito 8.4: exportar un adjunto de media/ a otra ruta.
@@ -194,5 +193,19 @@ public class GestorChat {
                 salida.write(bloque, 0, leidos);
             }
         }
+    }
+
+    // Devuelve el nombre tal como se registró, o lanza error si no existe.
+    private String buscarNombreRegistrado(String nombre) throws JAXBException {
+        if (nombre == null || nombre.isBlank()) {
+            throw new IllegalArgumentException("El nombre de usuario no puede estar vacío.");
+        }
+        String buscado = nombre.trim();
+        return this.gestorXML.leerUsuarios().getUsuarios().stream()
+                .map(Usuario::getNombre)
+                .filter(n -> n.equalsIgnoreCase(buscado))
+                .findFirst()
+                .orElseThrow(() -> new IllegalArgumentException(
+                        "El usuario '" + buscado + "' no está registrado."));
     }
 }
