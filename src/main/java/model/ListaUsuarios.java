@@ -1,4 +1,5 @@
 package model;
+
 import jakarta.xml.bind.annotation.XmlAccessType;
 import jakarta.xml.bind.annotation.XmlAccessorType;
 import jakarta.xml.bind.annotation.XmlElement;
@@ -9,6 +10,10 @@ import java.util.List;
 @XmlRootElement(name = "usuarios")
 @XmlAccessorType(XmlAccessType.FIELD)
 public class ListaUsuarios {
-    // TODO: Programar la lista de usuarios.
+    @XmlElement(name = "usuario")
+    private List<Usuario> usuarios = new ArrayList<>();
 
+    public ListaUsuarios() { }
+    public List<Usuario> getUsuarios() { return usuarios; }
+    public void setUsuarios(List<Usuario> usuarios) { this.usuarios = usuarios; }
 }

@@ -1,29 +1,49 @@
 package dataAccess;
 
+import jakarta.xml.bind.JAXBContext;
 import jakarta.xml.bind.JAXBException;
+import jakarta.xml.bind.Marshaller;
+import jakarta.xml.bind.Unmarshaller;
 import model.ListaMensajes;
 import model.ListaUsuarios;
 
+import java.io.File;
+
 public class GestorXML {
-    // TODO Fase 1: guardar usuarios.xml usando JAXB (Marshaller).
+    private static final File USUARIOS_XML = new File("usuarios.xml");
+    private static final File MENSAJES_XML = new File("mensajes.xml");
+
+
     public void guardarUsuarios(ListaUsuarios usuarios) throws JAXBException {
-        throw new UnsupportedOperationException("Pendiente: guardarUsuarios");
+        JAXBContext contexto = JAXBContext.newInstance(ListaUsuarios.class);
+        Marshaller marshaller = contexto.createMarshaller();
+        marshaller.setProperty(Marshaller.JAXB_FORMATTED_OUTPUT, true);
+        marshaller.marshal(usuarios, USUARIOS_XML);
     }
 
-    // TODO Fase 1: recuperar usuarios.xml usando JAXB (Unmarshaller).
-    // Si no existe el archivo, devolver una ListaUsuarios vacía.
     public ListaUsuarios leerUsuarios() throws JAXBException {
-        throw new UnsupportedOperationException("Pendiente: leerUsuarios");
+        if (!USUARIOS_XML.exists()) {
+            return new ListaUsuarios();
+        }
+        JAXBContext contexto = JAXBContext.newInstance(ListaUsuarios.class);
+        Unmarshaller lector = contexto.createUnmarshaller();
+        return (ListaUsuarios) lector.unmarshal(USUARIOS_XML);
     }
 
-    // TODO Fase 2: guardar mensajes.xml usando JAXB.
     public void guardarMensajes(ListaMensajes mensajes) throws JAXBException {
-        throw new UnsupportedOperationException("Pendiente: guardarMensajes");
+        JAXBContext contexto = JAXBContext.newInstance(ListaMensajes.class);
+        Marshaller marshaller = contexto.createMarshaller();
+        marshaller.setProperty(Marshaller.JAXB_FORMATTED_OUTPUT, true);
+        marshaller.marshal(mensajes, MENSAJES_XML);
     }
 
-    // TODO Fase 2: recuperar mensajes.xml usando JAXB.
     // Si no existe el archivo, devolver una ListaMensajes vacía.
     public ListaMensajes leerMensajes() throws JAXBException {
-        throw new UnsupportedOperationException("Pendiente: leerMensajes");
+        if (!MENSAJES_XML.exists()) {
+            return new ListaMensajes();
+        }
+        JAXBContext contexto = JAXBContext.newInstance(ListaMensajes.class);
+        Unmarshaller lector = contexto.createUnmarshaller();
+        return (ListaMensajes) lector.unmarshal(MENSAJES_XML);
     }
 }
