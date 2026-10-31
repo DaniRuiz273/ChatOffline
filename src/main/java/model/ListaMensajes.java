@@ -6,10 +6,13 @@ import jakarta.xml.bind.annotation.XmlRootElement;
 import java.util.ArrayList;
 import java.util.List;
 
+/**
+ * Clase contenedora de todo el historial de mensajes
+ */
 @XmlRootElement(name = "mensajes")
 @XmlAccessorType(XmlAccessType.FIELD)
 public class ListaMensajes {
-    @XmlElement(name = "mensaje")
+    @XmlElement(name = "mensaje") // Lista de mensajes
     private List<Mensaje> mensajes = new ArrayList<>();
 
     public ListaMensajes() { }

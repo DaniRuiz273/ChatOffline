@@ -7,10 +7,13 @@ import jakarta.xml.bind.annotation.XmlRootElement;
 import java.util.ArrayList;
 import java.util.List;
 
+/**
+ * Clase contenedora de todos los usuarios registrados
+ */
 @XmlRootElement(name = "usuarios")
 @XmlAccessorType(XmlAccessType.FIELD)
 public class ListaUsuarios {
-    @XmlElement(name = "usuario")
+    @XmlElement(name = "usuario") // Lista de usuarios
     private List<Usuario> usuarios = new ArrayList<>();
 
     public ListaUsuarios() { }

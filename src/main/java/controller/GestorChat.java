@@ -18,14 +18,19 @@ import java.time.LocalDateTime;
 import java.util.*;
 import java.util.stream.Collectors;
 
+/**
+ * Capa de lógica del chat
+ */
 public class GestorChat {
-    private final GestorXML gestorXML = new GestorXML();
+    private final GestorXML gestorXML = new GestorXML(); // Único punto de acceso a los ficheros XML
+    private static final List<String> EXTENSIONES_PERMITIDAS = List.of("jpg", "jpeg", "png", "gif", "pdf", "txt"); // Extensiones de adjunto permitidas
+    private static final long TAMANO_MAXIMO = 5L * 1024 * 1024; // Tamaño máximo de un adjunto en bytes (5 MB)
 
-    private static final List<String> EXTENSIONES_PERMITIDAS =
-            List.of("jpg", "jpeg", "png", "gif", "pdf", "txt");
-    private static final long TAMANO_MAXIMO = 5L * 1024 * 1024; // 5 MB
-
-    // Fase 1: comprobar duplicados y registrar el usuario en XML.
+    /**
+     * Método que registra un usuario nuevo en usuarios.xml
+     * @param nombre Nombre del nuevo usuario
+     * @throws JAXBException si no se puede leer o guardar usuarios.xml
+     */
     public void registrarUsuario(String nombre) throws JAXBException {
         if (nombre == null || nombre.isBlank()) {
             throw new IllegalArgumentException("El nombre no puede estar vacío.");
@@ -34,8 +39,7 @@ public class GestorChat {
 
         ListaUsuarios lista = this.gestorXML.leerUsuarios();
 
-        boolean existe = lista.getUsuarios().stream()
-                .anyMatch(u -> u.getNombre().equalsIgnoreCase(limpio));
+        boolean existe = lista.getUsuarios().stream().anyMatch(u -> u.getNombre().equalsIgnoreCase(limpio));
         if (existe) {
             throw new IllegalArgumentException("El usuario '" + limpio + "' ya existe.");
         }
@@ -44,7 +48,13 @@ public class GestorChat {
         this.gestorXML.guardarUsuarios(lista);
     }
 
-    // Fase 2: validar usuarios, crear mensaje con fecha y persistirlo.
+    /**
+     * Método con el que enviamos un mensaje de un usuario a otro
+     * @param emisor Usuario que envía el mensaje
+     * @param destinatario Usuario que recibe el mensaje
+     * @param contenido El texto del mensaje
+     * @throws JAXBException si no se puede leer o guardar algún XML
+     */
     public void enviarMensaje(String emisor, String destinatario, String contenido) throws JAXBException {
         if (contenido == null || contenido.isBlank()) {
             throw new IllegalArgumentException("El mensaje no puede estar vacío.");
@@ -65,7 +75,13 @@ public class GestorChat {
         this.gestorXML.guardarMensajes(lista);
     }
 
-    // Fase 3: filtrar mensajes en ambos sentidos (A -> B y B -> A).
+    /**
+     * Método que devuelve la conversación entre dos usuarios, ordenada por fecha
+     * @param usuarioA Primer usuario de la conversación
+     * @param usuarioB Segundo usuario de la conversación
+     * @return Mensajes entre ambos, del más antiguo al más reciente (vacía si no hay)
+     * @throws JAXBException si no se puede leer algún XML
+     */
     public List<Mensaje> consultarConversacion(String usuarioA, String usuarioB) throws JAXBException {
         String nombreA = buscarNombreRegistrado(usuarioA);
         String nombreB = buscarNombreRegistrado(usuarioB);
@@ -83,24 +99,33 @@ public class GestorChat {
                 .toList();
     }
 
-    // Fase 4: contar mensajes por emisor con Stream API.
+    /**
+     * Método que cuenta cuántos mensajes ha enviado cada usuario en una conversación
+     * @param usuarioA Primer usuario de la conversación
+     * @param usuarioB Segundo usuario de la conversación
+     * @return el nombre del emisor y su número de mensajes
+     * @throws JAXBException si no se puede leer algún XML
+     */
     public Map<String, Long> estadisticas(String usuarioA, String usuarioB) throws JAXBException {
         List<Mensaje> conversacion = consultarConversacion(usuarioA, usuarioB);
-
-        return conversacion.stream()
-                .collect(Collectors.groupingBy(Mensaje::getEmisor, Collectors.counting()));
+        return conversacion.stream().collect(Collectors.groupingBy(Mensaje::getEmisor, Collectors.counting()));
     }
 
-    // Fase 4: exportar la conversación a un archivo de texto.
-    public void exportarConversacion(String usuarioA, String usuarioB, Path destino)
-            throws JAXBException, IOException {
+    /**
+     * Método que exporta una conversación a un archivo de texto, una línea por mensaje
+     * @param usuarioA Primer usuario de la conversación
+     * @param usuarioB Segundo usuario de la conversación
+     * @param destino Ruta del archivo de texto que se va a crear
+     * @throws JAXBException si no se puede leer algún XML
+     * @throws IOException si falla la escritura del archivo
+     */
+    public void exportarConversacion(String usuarioA, String usuarioB, Path destino) throws JAXBException, IOException {
         List<Mensaje> conversacion = consultarConversacion(usuarioA, usuarioB);
         if (conversacion.isEmpty()) {
             throw new IllegalArgumentException("No hay mensajes que exportar entre esos usuarios.");
         }
 
         File archivo = prepararDestino(destino);
-
         List<String> lineas = conversacion.stream()
                 .map(m -> {
                     String linea = "[" + m.getFecha().replace('T', ' ') + "] "
@@ -123,8 +148,14 @@ public class GestorChat {
         }
     }
 
-    // Fase 5: validar extensión/tamaño, copiar con InputStream/OutputStream
-    // a media/ y guardar los metadatos del adjunto en el mensaje XML.
+    /**
+     * Método que adjunta un archivo a un mensaje. Valida extensión y tamaño, copia el
+     * archivo a la carpeta media/ con streams binarios y guarda sus datos en el mensaje
+     * @param mensaje Mensaje al que se adjunta el archivo
+     * @param archivoOrigen Ruta del archivo que se quiere adjuntar
+     * @throws IOException si el archivo no existe o falla la copia
+     * @throws JAXBException si no se puede leer o guardar mensajes.xml
+     */
     public void adjuntarArchivo(Mensaje mensaje, Path archivoOrigen) throws IOException, JAXBException {
         if (mensaje == null) {
             throw new IllegalArgumentException("Debes indicar un mensaje.");
@@ -203,7 +234,13 @@ public class GestorChat {
         }
     }
 
-    // Requisito 8.4: exportar un adjunto de media/ a otra ruta.
+    /**
+     * Método que copia el adjunto de un mensaje desde media/ a otra ruta.
+     * Si el archivo ya no está en media/, avisa pero el mensaje se conserva
+     * @param mensaje Mensaje que tiene el adjunto
+     * @param destino Ruta donde se va a guardar la copia
+     * @throws IOException si el adjunto no existe o falla la copia
+     */
     public void exportarAdjunto(Mensaje mensaje, Path destino) throws IOException {
         if (mensaje == null || mensaje.getAdjuntoRuta() == null) {
             throw new IllegalArgumentException("Este mensaje no tiene adjunto.");
@@ -215,7 +252,6 @@ public class GestorChat {
         }
 
         File copia = prepararDestino(destino);
-
         try (FileInputStream entrada = new FileInputStream(origen);
              FileOutputStream salida = new FileOutputStream(copia)) {
             byte[] bloque = new byte[1024];
@@ -229,7 +265,13 @@ public class GestorChat {
         }
     }
 
-    // Devuelve el nombre tal como se registró, o lanza error si no existe.
+    /**
+     * Método auxiliar que busca un usuario y devuelve su nombre tal como se registró.
+     * Así "ANA" y "ana" se guardan siempre igual y las estadísticas no se duplican
+     * @param nombre Nombre escrito por el usuario
+     * @return El nombre tal como está en usuarios.xml
+     * @throws JAXBException si no se puede leer usuarios.xml
+     */
     private String buscarNombreRegistrado(String nombre) throws JAXBException {
         if (nombre == null || nombre.isBlank()) {
             throw new IllegalArgumentException("El nombre de usuario no puede estar vacío.");
@@ -243,7 +285,13 @@ public class GestorChat {
                         "El usuario '" + buscado + "' no está registrado."));
     }
 
-    // Comprueba el destino y crea la carpeta padre si no existe.
+    /**
+     * Método auxiliar que comprueba el archivo de destino de una exportación:
+     * no puede ser una carpeta ni existir ya. Crea la carpeta padre si falta
+     * @param destino Ruta del archivo que se quiere crear
+     * @return El archivo de destino, listo para escribir
+     * @throws IOException si no se puede crear la carpeta de destino
+     */
     private File prepararDestino(Path destino) throws IOException {
         if (destino == null) {
             throw new IllegalArgumentException("Debes indicar un archivo de destino.");
@@ -262,6 +310,11 @@ public class GestorChat {
         return archivo;
     }
 
+    /**
+     * Método que devuelve los nombres de los usuarios registrados, ordenados alfabéticamente
+     * @return Lista de nombres (vacía si no hay ninguno)
+     * @throws JAXBException si no se puede leer usuarios.xml
+     */
     public List<String> listarUsuarios() throws JAXBException {
         return this.gestorXML.leerUsuarios().getUsuarios().stream()
                 .map(Usuario::getNombre)
@@ -269,6 +322,15 @@ public class GestorChat {
                 .toList();
     }
 
+    /**
+     * Método que devuelve las palabras más repetidas de una conversación.
+     * Ignora mayúsculas y descarta las palabras de menos de 3 letras
+     * @param usuarioA Primer usuario de la conversación
+     * @param usuarioB Segundo usuario de la conversación
+     * @param limite Número máximo de palabras que se devuelven
+     * @return Mapa palabra-veces, ordenado de la más a la menos usada
+     * @throws JAXBException si no se puede leer algún XML
+     */
     public Map<String, Long> palabrasMasComunes(String usuarioA, String usuarioB, int limite)
             throws JAXBException {
         List<Mensaje> conversacion = consultarConversacion(usuarioA, usuarioB);

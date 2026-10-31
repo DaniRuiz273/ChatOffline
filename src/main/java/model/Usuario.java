@@ -2,6 +2,9 @@ package model;
 import jakarta.xml.bind.annotation.XmlAccessType;
 import jakarta.xml.bind.annotation.XmlAccessorType;
 
+/**
+ * Representa a un usuario registrado en el chat
+ */
 @XmlAccessorType(XmlAccessType.FIELD)
 public class Usuario {
     private String nombre;

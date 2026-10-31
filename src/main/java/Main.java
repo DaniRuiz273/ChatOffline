@@ -10,6 +10,9 @@ import java.util.List;
 import java.util.Map;
 import java.util.Scanner;
 
+/**
+ * Interfaz de consola del chat
+ */
 public class Main {
     public static void main(String[] args) {
         Scanner teclado = new Scanner(System.in);
@@ -65,7 +68,12 @@ public class Main {
         System.out.print("Elige una opción: ");
     }
 
-    // Repite la pregunta hasta que se escriba algo.
+    /**
+     * Método que pide un texto por teclado y repite la pregunta mientras esté vacío
+     * @param teclado Scanner con el que se lee la entrada
+     * @param texto Pregunta que se muestra al usuario
+     * @return El texto escrito, sin espacios al principio ni al final
+     */
     private static String pedir(Scanner teclado, String texto) {
         String valor;
         do {
@@ -78,7 +86,12 @@ public class Main {
         return valor;
     }
 
-    // Pide una ruta y comprueba que sea válida.
+    /**
+     * Método que pide una ruta por teclado y repite la pregunta si tiene caracteres no válidos
+     * @param teclado Scanner con el que se lee la entrada
+     * @param texto Pregunta que se muestra al usuario
+     * @return La ruta ya convertida a Path
+     */
     private static Path pedirRuta(Scanner teclado, String texto) {
         while (true) {
             String ruta = pedir(teclado, texto);
@@ -90,7 +103,13 @@ public class Main {
         }
     }
 
-    // Pide un número entre 1 y max; devuelve -1 si no es válido.
+    /**
+     * Método que pide un número y comprueba que esté entre 1 y el máximo indicado
+     * @param teclado Scanner con el que se lee la entrada
+     * @param texto Pregunta que se muestra al usuario
+     * @param max Número más alto que se acepta
+     * @return El número elegido, o -1 si no es válido
+     */
     private static int pedirNumero(Scanner teclado, String texto, int max) {
         String entrada = pedir(teclado, texto);
         try {
@@ -106,6 +125,11 @@ public class Main {
         }
     }
 
+    /**
+     * Método que convierte un tamaño en bytes a un texto legible (bytes o KB)
+     * @param bytes Tamaño del archivo en bytes
+     * @return El tamaño como texto, por ejemplo "20,0 KB"
+     */
     private static String formatearTamano(long bytes) {
         if (bytes < 1024) {
             return bytes + " bytes";
@@ -113,13 +137,24 @@ public class Main {
         return String.format("%.1f KB", bytes / 1024.0);
     }
 
+    /**
+     * Opción 1: pide un nombre y registra un usuario nuevo
+     * @param teclado Scanner con el que se lee la entrada
+     * @param chat Gestor que aplica las reglas del chat
+     * @throws JAXBException si no se puede leer o guardar usuarios.xml
+     */
     private static void registrar(Scanner teclado, GestorChat chat) throws JAXBException {
-        mostrarUsuarios(chat);
         String nombre = pedir(teclado, "Nombre del nuevo usuario: ");
         chat.registrarUsuario(nombre);
         System.out.println("Usuario '" + nombre + "' registrado correctamente.");
     }
 
+    /**
+     * Opción 2: pide emisor, destinatario y texto, y envía el mensaje
+     * @param teclado Scanner con el que se lee la entrada
+     * @param chat Gestor que aplica las reglas del chat
+     * @throws JAXBException si no se puede leer o guardar algún XML
+     */
     private static void enviar(Scanner teclado, GestorChat chat) throws JAXBException {
         mostrarUsuarios(chat);
         String emisor = pedir(teclado, "Emisor: ");
@@ -129,6 +164,13 @@ public class Main {
         System.out.println("Mensaje enviado.");
     }
 
+    /**
+     * Opción 3: muestra la conversación entre dos usuarios. Si un adjunto ya no
+     * está en media/, lo marca como [ARCHIVO NO ENCONTRADO] sin borrar el mensaje
+     * @param teclado Scanner con el que se lee la entrada
+     * @param chat Gestor que aplica las reglas del chat
+     * @throws JAXBException si no se puede leer algún XML
+     */
     private static void consultar(Scanner teclado, GestorChat chat) throws JAXBException {
         mostrarUsuarios(chat);
         String a = pedir(teclado, "Usuario A: ");
@@ -157,6 +199,13 @@ public class Main {
         System.out.println("=====================================================");
     }
 
+    /**
+     * Opción 4: muestra los mensajes de cada usuario con su porcentaje
+     * y las palabras más usadas de la conversación
+     * @param teclado Scanner con el que se lee la entrada
+     * @param chat Gestor que aplica las reglas del chat
+     * @throws JAXBException si no se puede leer algún XML
+     */
     private static void estadisticas(Scanner teclado, GestorChat chat) throws JAXBException {
         mostrarUsuarios(chat);
         String a = pedir(teclado, "Usuario A: ");
@@ -186,6 +235,13 @@ public class Main {
         }
     }
 
+    /**
+     * Opción 5: exporta una conversación a un archivo de texto
+     * @param teclado Scanner con el que se lee la entrada
+     * @param chat Gestor que aplica las reglas del chat
+     * @throws JAXBException si no se puede leer algún XML
+     * @throws IOException si falla la escritura del archivo
+     */
     private static void exportar(Scanner teclado, GestorChat chat) throws JAXBException, IOException {
         mostrarUsuarios(chat);
         String a = pedir(teclado, "Usuario A: ");
@@ -196,6 +252,13 @@ public class Main {
         System.out.println("Conversación exportada a " + ruta);
     }
 
+    /**
+     * Opción 6: muestra la conversación numerada y adjunta un archivo al mensaje elegido
+     * @param teclado Scanner con el que se lee la entrada
+     * @param chat Gestor que aplica las reglas del chat
+     * @throws JAXBException si no se puede leer o guardar mensajes.xml
+     * @throws IOException si el archivo no existe o falla la copia
+     */
     private static void adjuntar(Scanner teclado, GestorChat chat) throws JAXBException, IOException {
         mostrarUsuarios(chat);
         String a = pedir(teclado, "Usuario A: ");
@@ -224,6 +287,14 @@ public class Main {
         System.out.println("Archivo adjuntado correctamente.");
     }
 
+    /**
+     * Opción 7: lista los mensajes con adjunto de una conversación y copia
+     * el elegido desde media/ a la ruta indicada
+     * @param teclado Scanner con el que se lee la entrada
+     * @param chat Gestor que aplica las reglas del chat
+     * @throws JAXBException si no se puede leer algún XML
+     * @throws IOException si el adjunto no existe o falla la copia
+     */
     private static void exportarAdjunto(Scanner teclado, GestorChat chat) throws JAXBException, IOException {
         mostrarUsuarios(chat);
         String a = pedir(teclado, "Usuario A: ");
@@ -255,7 +326,12 @@ public class Main {
         System.out.println("Adjunto exportado a " + ruta);
     }
 
-    // Muestra los usuarios registrados; si no hay ninguno, avisa.
+    /**
+     * Método que muestra los usuarios registrados para no tener que recordarlos.
+     * Si no hay ninguno, lanza un aviso que el main muestra al usuario
+     * @param chat Gestor del que se obtiene la lista de usuarios
+     * @throws JAXBException si no se puede leer usuarios.xml
+     */
     private static void mostrarUsuarios(GestorChat chat) throws JAXBException {
         List<String> usuarios = chat.listarUsuarios();
         if (usuarios.isEmpty()) {

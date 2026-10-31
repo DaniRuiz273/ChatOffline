@@ -2,6 +2,9 @@ package model;
 import jakarta.xml.bind.annotation.XmlAccessType;
 import jakarta.xml.bind.annotation.XmlAccessorType;
 
+/**
+ * Representa un mensaje enviado de un usuario a otro. Los mensajes nunca se borran.
+ */
 @XmlAccessorType(XmlAccessType.FIELD)
 public class Mensaje {
     private String emisor;
